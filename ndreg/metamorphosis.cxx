@@ -40,6 +40,8 @@ int main(int argc, char* argv[])
     cerr<<"\t\t[ --inmask inMaskPath"<<endl;
     cerr<<"\t\t  --refmask refMaskPath"<<endl;
     cerr<<"\t\t  --outmask outMaskPath"<<endl;
+    cerr<<"\t\t  --in2 ref2Path"<<endl;
+    cerr<<"\t\t  --out2 out2Path"<<endl;
     cerr<<"\t\t  --field OutputDisplacementFieldPath"<<endl;
     cerr<<"\t\t  --invfield OutputInverseDisplacementFieldPath"<<endl;
     cerr<<"\t\t  --bias OutputBiasPath"<<endl;
@@ -148,9 +150,64 @@ int Metamorphosis(typename TImage::Pointer fixedImage, typename ParserType::Poin
 
   // Set input (moving) image
   metamorphosis->SetMovingImage(movingImage); // I_0
+  
+  // leebc- moved this const up from the mask section
+  itkStaticConstMacro(ImageDimension, unsigned int, ImageType::ImageDimension);
+  
+  // ------------------------------------------------------------------------------------------------------------------
+  // Read input (moving) mask (multichannel)
+  string input2Path;
+  parser->GetCommandLineArgument("--in2",input2Path);
+  
+  //typedef itk::Image<unsigned char, ImageDimension>  CharImageType;
+  typedef itk::ImageFileReader<ImageType> In2ReaderType;
+  typename In2ReaderType::Pointer inputIn2Reader = In2ReaderType::New();
+  inputIn2Reader->SetFileName(input2Path);
+  try
+  {
+    inputIn2Reader->Update();
+  }
+  catch(itk::ExceptionObject& exceptionObject)
+  {
+    cerr<<"Error: Could not read input image: "<<input2Path<<endl;
+    cerr<<exceptionObject<<endl;
+    return EXIT_FAILURE;
+  }
+
+  typename ImageType::Pointer movingImage2 = inputIn2Reader->GetOutput();
+  movingImage2->SetDirection(fixedImage->GetDirection());
+
+  //------------------------------------------
+  // Set input (moving) mask (multichannel)
+  metamorphosis->SetMovingMask(movingImage2); // I_0
+  
+  // Read ref (fixed) mask (multichannel)
+  string inputRef2Path;
+  parser->GetCommandLineArgument("--ref2",inputRef2Path);
+
+  typedef itk::ImageFileReader<ImageType> Ref2ReaderType;
+  typename Ref2ReaderType::Pointer inputRef2Reader = Ref2ReaderType::New();
+  inputRef2Reader->SetFileName(inputRef2Path);
+  try
+  {
+    inputRef2Reader->Update();
+  }
+  catch(itk::ExceptionObject& exceptionObject)
+  {
+    cerr<<"Error: Could not read input image: "<<inputRef2Path<<endl;
+    cerr<<exceptionObject<<endl;
+    return EXIT_FAILURE;
+  }
+
+  typename ImageType::Pointer fixedImage2 = inputRef2Reader->GetOutput();
+  fixedImage2->SetDirection(fixedImage->GetDirection());
+
+  // Set ref (fixed) mask (multichannel)
+  metamorphosis->SetFixedMask(fixedImage2); // I_0
+  //-------------------------------------------------------------------------------------------------------------------
 
   // Read input (moving) mask
-  itkStaticConstMacro(ImageDimension, unsigned int, ImageType::ImageDimension);
+  
   typedef itk::ImageMaskSpatialObject<ImageDimension>  MaskType;
   typedef typename MaskType::ImageType                 MaskImageType;
   typedef itk::ImageFileReader<MaskImageType>          MaskReaderType;
@@ -302,6 +359,17 @@ int Metamorphosis(typename TImage::Pointer fixedImage, typename ParserType::Poin
 
         metamorphosis->SetMetric(metric);
         metamorphosis->SetSigma(0.0001);
+        metamorphosis->SetSigma2(0.0001);
+	
+        //typedef itk::MattesMutualInformationImageToImageMetricv4<ImageType, ImageType> Metric2Type;
+        //typename Metric2Type::Pointer metric2 = Metric2Type::New();
+        //metric2->SetNumberOfHistogramBins(4);
+        //metric2->SetFixedImageMask(fixedMask);
+        //metric2->SetMovingImageMask(movingMask);
+        //metamorphosis->SetMetric2(metric2);
+        //metamorphosis->SetSigma(0.0001);
+        //metamorphosis->SetSigma2(0.0001);
+
         break;
       }
       default:
@@ -313,6 +381,16 @@ int Metamorphosis(typename TImage::Pointer fixedImage, typename ParserType::Poin
 
         metamorphosis->SetMetric(metric);
         metamorphosis->SetSigma(1.0);
+        metamorphosis->SetSigma2(1.0);
+
+        //typedef itk::MeanSquaresImageToImageMetricv4<ImageType, ImageType> Metric2Type;
+        //typename Metric2Type::Pointer metric2 = Metric2Type::New();
+        //metric2->SetFixedImageMask(fixedMask);
+        //metric2->SetMovingImageMask(movingMask);
+        //metamorphosis->SetMetric2(metric2);
+        //metamorphosis->SetSigma(1.0);
+        //metamorphosis->SetSigma2(1.0);
+
       }
     } 
     
@@ -323,6 +401,13 @@ int Metamorphosis(typename TImage::Pointer fixedImage, typename ParserType::Poin
     double sigma;
     parser->GetCommandLineArgument("--sigma",sigma);
     metamorphosis->SetSigma(sigma);
+  }
+
+  if(parser->ArgumentExists("--sigma2"))
+  {
+    double sigma2;
+    parser->GetCommandLineArgument("--sigma2",sigma2);
+    metamorphosis->SetSigma2(sigma2);
   }
 
   // Run metamorphosis 

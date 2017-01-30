@@ -42,6 +42,8 @@ ndregScale = 1
 ndregRigid = 2 #1
 ndregAffine = 3 #2
 
+def identifyMe():
+    print("multichannel")
 
 
 def isIterable(obj):
@@ -986,7 +988,7 @@ def imgAffineComposite(inImg, refImg, scale=1.0, useNearest=False, useMI=False, 
     
     return compositeAffine    
 
-def imgMetamorphosis(inImg, refImg, alpha=0.02, beta=0.05, scale=1.0, iterations=1000, useNearest=False, useBias=False, useMI=False, verbose=False, debug=False, inMask=None, refMask=None, outDirPath=""):
+def imgMetamorphosis(inImg, refImg, in2="None", ref2="None", alpha=0.02, beta=0.05, scale=1.0, iterations=1000, useNearest=False, useBias=False, useMI=False, verbose=False, debug=False, inMask=None, refMask=None, outDirPath=""):
     """
     Performs Metamorphic LDDMM between input and reference images
     """
@@ -1002,17 +1004,31 @@ def imgMetamorphosis(inImg, refImg, alpha=0.02, beta=0.05, scale=1.0, iterations
     refPath = outDirPath + "ref.img"
     imgWrite(refImg, refPath)
     outPath = outDirPath + "out.img"
-
+    if in2 != "None":
+        print("Using multichannel")
+        in2Path = outDirPath + "in2.img"
+        imgWrite(in2,in2Path)
+        ref2Path = outDirPath + "ref2.img"
+        imgWrite(ref2,ref2Path)
+    
     fieldPath = outDirPath + "field.vtk"
     invFieldPath = outDirPath + "invField.vtk"
 
     binPath = ndregDirPath + "metamorphosis "
     steps = 5 ###
-    command = binPath + " --in {0} --ref {1} --out {2} --alpha {3} --beta {4} --field {5} --invfield {6} --iterations {7} --scale {8} --steps {9} --verbose ".format(inPath, refPath, outPath, alpha, beta, fieldPath, invFieldPath, iterations, scale, steps)
+    if in2 == "None":
+        command = binPath + " --in {0} --ref {1} --out {2} --alpha {3} --beta {4} --field {5} --invfield {6} --iterations {7} --scale {8} --steps {9} --verbose ".format(inPath, refPath, outPath, alpha, beta, fieldPath, invFieldPath, iterations, scale, steps)
+    else:
+        command = binPath + " --in {0} --ref {1} --out {2} --alpha {3} --beta {4} --field {5} --invfield {6} --iterations {7} --scale {8} --steps {9} --in2 {10} --ref2 {11} --verbose ".format(inPath, refPath, outPath, alpha, beta, fieldPath, invFieldPath, iterations, scale, steps, in2Path, ref2Path)
+    
     if(not useBias): command += " --mu 0"
     if(useMI):
-        #command += " --cost 1 --sigma 1e-5 --epsilon 1e-3" 
-        command += " --cost 1 --sigma 1e-4 --epsilon 1e-3" 
+        if in2 == "None":
+            #command += " --cost 1 --sigma 1e-5 --epsilon 1e-3" 
+            command += " --cost 1 --sigma 1e-4 --epsilon 1e-3" 
+        else:
+            command += " --cost 1 --sigma 1e-4 --sigma2 1e-4 --epsilon 1e-3"
+        
         
     if(inMask):
         inMaskPath = outDirPath + "inMask.img"
@@ -1038,7 +1054,7 @@ def imgMetamorphosis(inImg, refImg, alpha=0.02, beta=0.05, scale=1.0, iterations
     return (field, invField)
 
 
-def imgMetamorphosisComposite(inImg, refImg, alphaList=0.02, betaList=0.05, scaleList=1.0, iterations=1000, useNearest=False, useBias=False, useMI=False, inMask=None, refMask=None, verbose=True, debug=False, outDirPath=""):
+def imgMetamorphosisComposite(inImg, refImg, in2="None", ref2="None", alphaList=0.02, betaList=0.05, scaleList=1.0, iterations=1000, useNearest=False, useBias=False, useMI=False, inMask=None, refMask=None, verbose=True, debug=False, outDirPath=""):
     """
     Performs Metamorphic LDDMM between input and reference images
     """
@@ -1082,19 +1098,35 @@ def imgMetamorphosisComposite(inImg, refImg, alphaList=0.02, betaList=0.05, scal
         stepDirPath = outDirPath + "step" + str(step) + "/"
         if(verbose): print("\nStep {0}: alpha={1}, beta={2}, scale={3}".format(step,alpha, beta, scale))
 
-        (field, invField) = imgMetamorphosis(inImg, refImg, 
-                                             alpha, 
-                                             beta, 
-                                             scale, 
-                                             iterations, 
-                                             useNearest, 
-                                             useBias, 
-                                             useMI, 
-                                             verbose,
-                                             debug,
-                                             inMask=inMask,
-                                             refMask=refMask,
-                                             outDirPath=stepDirPath)
+	if in2 == "None":
+            (field, invField) = imgMetamorphosis(inImg, refImg, 
+                                                 alpha, 
+                                                 beta, 
+                                                 scale, 
+                                                 iterations, 
+                                                 useNearest, 
+                                                 useBias, 
+                                                 useMI, 
+                                                 verbose,
+                                                 debug,
+                                                 inMask=inMask,
+                                                 refMask=refMask,
+                                                 outDirPath=stepDirPath)
+	else:
+	    (field, invField) = imgMetamorphosis(inImg, refImg, in2, ref2,
+                                                 alpha,
+                                                 beta,
+                                                 scale,
+                                                 iterations,
+                                                 useNearest,
+                                                 useBias,
+                                                 useMI,
+                                                 verbose,
+                                                 debug,
+                                                 inMask=inMask,
+                                                 refMask=refMask,
+                                                 outDirPath=stepDirPath)
+	
 
         if step == 0:
             compositeField = field

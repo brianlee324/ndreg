@@ -168,6 +168,8 @@ public:
   itkGetConstMacro(BiasSmoothness,double);
   itkSetMacro(Sigma, double);
   itkGetConstMacro(Sigma, double);
+  itkSetMacro(Sigma2, double);
+  itkGetConstMacro(Sigma2, double);
   itkSetMacro(Mu, double);
   itkGetConstMacro(Mu, double);
   itkSetMacro(Gamma, double);
@@ -186,6 +188,15 @@ public:
   itkBooleanMacro(UseBias);
   itkSetMacro(UseBias, bool);
   itkGetConstMacro(UseBias, bool);
+  itkSetMacro(Channels, unsigned int);
+  itkGetConstMacro(Channels, unsigned int);
+  itkSetMacro(FixedMask, FixedImagePointer);
+  itkGetConstMacro(FixedMask, FixedImagePointer);
+  itkSetMacro(MovingMask, MovingImagePointer);
+  itkGetConstMacro(MovingMask, MovingImagePointer);
+  //itkSetMacro(Metric2, ImageMetricPointer);
+  //itkGetConstMacro(Metric2, ImageMetricPointer);
+
 
   double GetVelocityEnergy();
   double GetRateEnergy();
@@ -220,6 +231,7 @@ private:
   double m_RegistrationSmoothness;
   double m_BiasSmoothness;
   double m_Sigma;
+  double m_Sigma2;
   double m_Mu;
   double m_Gamma;
   double m_MinLearningRate;
@@ -246,6 +258,12 @@ private:
   TimeVaryingImagePointer m_InverseRateKernel;
   TimeVaryingImagePointer m_Rate;
   VirtualImagePointer m_Bias;
+  unsigned int m_Channels;
+  FixedImagePointer m_MovingMask;
+  MovingImagePointer m_FixedMask;
+  VirtualImagePointer m_VirtualForwardMask;
+  //ImageMetricPointer m_Metric2;
+
 
   typename MovingImageConstantGradientFilterType::Pointer m_MovingImageConstantGradientFilter;
   typename FixedImageConstantGradientFilterType::Pointer  m_FixedImageConstantGradientFilter;
