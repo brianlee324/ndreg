@@ -15,6 +15,7 @@
 #include "itkDisplacementFieldJacobianDeterminantFilter.h"
 #include "itkStatisticsImageFilter.h"
 #include "itkAddImageFilter.h"
+#include "itkNaryAddImageFilter.h"
 #include "itkMultiplyImageFilter.h"
 #include "itkJoinSeriesImageFilter.h"
 #include "itkExtractImageFilter.h"
@@ -166,10 +167,8 @@ public:
   itkGetConstMacro(RegistrationSmoothness,double);
   itkSetMacro(BiasSmoothness, double);
   itkGetConstMacro(BiasSmoothness,double);
-  itkSetMacro(Sigma, double);
-  itkGetConstMacro(Sigma, double);
-  itkSetMacro(Sigma2, double);
-  itkGetConstMacro(Sigma2, double);
+  //itkSetMacro(Sigma, std::vector<double>);
+  //itkGetConstMacro(Sigma, std::vector<double>);
   itkSetMacro(Mu, double);
   itkGetConstMacro(Mu, double);
   itkSetMacro(Gamma, double);
@@ -190,22 +189,32 @@ public:
   itkGetConstMacro(UseBias, bool);
   itkSetMacro(Channels, unsigned int);
   itkGetConstMacro(Channels, unsigned int);
-  itkSetMacro(FixedMask, FixedImagePointer);
-  itkGetConstMacro(FixedMask, FixedImagePointer);
-  itkSetMacro(MovingMask, MovingImagePointer);
-  itkGetConstMacro(MovingMask, MovingImagePointer);
-  //itkSetMacro(Metric2, ImageMetricPointer);
-  //itkGetConstMacro(Metric2, ImageMetricPointer);
+  //itkSetMacro(FixedMask, FixedImagePointer);
+  //itkGetConstMacro(FixedMask, FixedImagePointer);
+  //itkSetMacro(MovingMask, MovingImagePointer);
+  //itkGetConstMacro(MovingMask, MovingImagePointer);
+  
+  // this stuff isn't working due to ITK debug macro so I need to make my own function that just sets global variable m_FixedImages to some input
+  //itkSetMacro(FixedImages, std::vector<FixedImagePointer>)
+  //itkGetConstMacro(FixedImages, std::vector<FixedImagePointer>)
+  //itkSetMacro(MovingImages, std::vector<MovingImagePointer>)
+  //itkGetConstMacro(MovingImages, std::vector<MovingImagePointer>)
+  //itkSetMacro(Metrics, std::vector<ImageMetricPointer>);
+  //itkGetConstMacro(Metrics, std::vector<ImageMetricPointer>);
 
 
   double GetVelocityEnergy();
   double GetRateEnergy();
-  double GetImageEnergy(VirtualImagePointer movingImage, MaskPointer movingMask=ITK_NULLPTR);
+  double GetImageEnergy(std::vector<VirtualImagePointer> movingImages, MaskPointer movingMask=ITK_NULLPTR);
   double GetImageEnergy();
   double GetImageEnergyFraction();
   double GetEnergy();
   double GetLength();
   BiasImagePointer GetBias();
+  void SetFixedImages(std::vector<FixedImagePointer>);
+  void SetMovingImages(std::vector<MovingImagePointer>);
+  void SetMetrics(std::vector<ImageMetricPointer>);
+  void SetSigma(std::vector<double>);
 
 protected:
   MetamorphosisImageRegistrationMethodv4();
@@ -230,8 +239,7 @@ private:
   double m_Scale;
   double m_RegistrationSmoothness;
   double m_BiasSmoothness;
-  double m_Sigma;
-  double m_Sigma2;
+  std::vector<double> m_Sigma;
   double m_Mu;
   double m_Gamma;
   double m_MinLearningRate;
@@ -248,7 +256,8 @@ private:
   bool m_RecalculateEnergy;
   bool m_IsConverged;
   VirtualImagePointer m_VirtualImage;
-  VirtualImagePointer m_ForwardImage;
+  //VirtualImagePointer m_ForwardImage;
+  std::vector<VirtualImagePointer> m_ForwardImages;
   MaskImagePointer    m_MovingMaskImage;
   MaskImagePointer    m_ForwardMaskImage;
   typename VirtualImageType::PointType m_CenterPoint;
@@ -259,9 +268,12 @@ private:
   TimeVaryingImagePointer m_Rate;
   VirtualImagePointer m_Bias;
   unsigned int m_Channels;
-  FixedImagePointer m_MovingMask;
-  MovingImagePointer m_FixedMask;
-  VirtualImagePointer m_VirtualForwardMask;
+  //FixedImagePointer m_MovingMask;
+  //MovingImagePointer m_FixedMask;
+  //VirtualImagePointer m_VirtualForwardMask;
+  std::vector<FixedImagePointer> m_FixedImages;
+  std::vector<MovingImagePointer> m_MovingImages;
+  std::vector<ImageMetricPointer> m_Metrics;
   //ImageMetricPointer m_Metric2;
 
 
