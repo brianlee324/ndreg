@@ -112,12 +112,15 @@ def imgHM(inImg, refImg, numMatchPoints=64, numBins=256):
     inImg = sitk.Cast(inImg, refImg.GetPixelID())
     return  sitk.HistogramMatchingImageFilter().Execute(inImg, refImg, numBins, numMatchPoints, False)
 
-def imgRead(path):
+def imgRead(path, imgtype="None"):
     """
     Alias for sitk.ReadImage
     """
-
-    inImg = sitk.ReadImage(path)
+    if imgtype == "None":
+        inImg = sitk.ReadImage(path)
+    else:
+        inImg = sitk.ReadImage(path, imgtype)
+            
     inImg = imgCollaspeDimension(inImg) ###
     #if(inImg.GetDimension() == 2): inImg = sitk.JoinSeriesImageFilter().Execute(inImg)
         

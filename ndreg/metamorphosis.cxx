@@ -41,8 +41,6 @@ int main(int argc, char* argv[])
     cerr<<"\t\t[ --inmask inMaskPath"<<endl;
     cerr<<"\t\t  --refmask refMaskPath"<<endl;
     cerr<<"\t\t  --outmask outMaskPath"<<endl;
-    cerr<<"\t\t  --in2 ref2Path"<<endl;
-    cerr<<"\t\t  --out2 out2Path"<<endl;
     cerr<<"\t\t  --field OutputDisplacementFieldPath"<<endl;
     cerr<<"\t\t  --invfield OutputInverseDisplacementFieldPath"<<endl;
     cerr<<"\t\t  --bias OutputBiasPath"<<endl;
