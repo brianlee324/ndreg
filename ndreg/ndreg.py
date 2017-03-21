@@ -3,7 +3,7 @@
 from __future__ import print_function
 import numpy as np
 import SimpleITK as sitk
-import ndio.remote.neurodata as neurodata
+#import ndio.remote.neurodata as neurodata
 import os, math, sys, subprocess, tempfile, shutil, requests
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
@@ -43,7 +43,7 @@ ndregRigid = 2 #1
 ndregAffine = 3 #2
 
 def identifyMe():
-    print("multichannel")
+    print("multichannel nmc 21 mar 2017 1131")
 
 
 def isIterable(obj):
@@ -130,6 +130,8 @@ def imgRead(path, imgtype="None"):
 
     return inImg
 
+'''
+
 def imgDownload(token, channel="", resolution=0, server="openconnecto.me", size=[], start=[]):
     """
     Download image with given token from given server at given resolution.
@@ -173,12 +175,16 @@ def imgDownload(token, channel="", resolution=0, server="openconnecto.me", size=
     img = imgCollaspeDimension(img)
 
     return img
+    
+'''
 
 def imgCopy(img):
     """
     Returns a copy of the input image
     """
     return sitk.Image(img)
+
+'''
 
 def limsGetMetadata(token):
     nd = neurodata()
@@ -419,6 +425,8 @@ def imgUpload(img, token, channel="", resolution=0, start=[0,0,0], server="openc
 
     # Propagate
     if propagate: nd.propagate(token, channel)
+    
+'''
 
 def imgWrite(img, path):
     """
@@ -1026,11 +1034,18 @@ def imgMetamorphosis(inImg, refImg, in2="None", ref2="None", alpha=0.02, beta=0.
     
     if(not useBias): command += " --mu 0"
     if(useMI):
+        #command += " --cost 1 --sigma 1e-5 --epsilon 1e-3" 
+        command += " --cost 1 --sigma 1e-4 --epsilon 1e-3"
+    else:
+        command += " --sigma 1e-2 --epsilon 1e-6"
+    '''
+    if(useMI):
         if in2 == "None":
             #command += " --cost 1 --sigma 1e-5 --epsilon 1e-3" 
             command += " --cost 1 --sigma 1e-4 --epsilon 1e-3" 
         else:
             command += " --cost 1 --sigma 1e-4 --sigma2 1e-4 --epsilon 1e-3"
+    '''
         
         
     if(inMask):
@@ -1156,6 +1171,230 @@ def imgMetamorphosisComposite(inImg, refImg, in2="None", ref2="None", alphaList=
     
     if useTempDir: shutil.rmtree(outDirPath)
     return (compositeField, compositeInvField)
+
+
+def imgMetamorphosisMC(inImg, refImg, alpha=0.02, beta=0.05, scale=1.0, sigma=1e-4, iterations=1000, epsilon=1e-6, useNearest=False, useBias=False, useMI=False, verbose=False, debug=False, inMask=None, refMask=None, outDirPath=""):
+    """
+    Performs Metamorphic LDDMM between input and reference images
+    """
+    useTempDir = False
+    if outDirPath == "":
+        useTempDir = True
+        outDirPath = tempfile.mkdtemp() + "/"
+    else:
+        outDirPath = dirMake(outDirPath)
+    
+    if isinstance(inImg,list):
+        if len(inImg) != len(refImg):
+            raise Exception("Number of input images does not match number of reference images.")
+        
+        inPathSave = ""
+        refPathSave = ""
+        for i in range(len(inImg)):
+            inPath = outDirPath + "in" + str(i) + ".img"
+            imgWrite(inImg[i], inPath)
+            refPath = outDirPath + "ref" + str(i) + ".img"
+            imgWrite(refImg[i], refPath)
+            inPathSave = inPathSave + " " + inPath
+            refPathSave = refPathSave + " " + refPath
+    else:
+        inPathSave = outDirPath + "in.img"
+        imgWrite(inImg, inPathSave)
+        refPathSave = outDirPath + "ref.img"
+        imgWrite(refImg, refPathSave)
+    
+    
+    outPath = outDirPath + "out.img"
+    
+    fieldPath = outDirPath + "field.vtk"
+    invFieldPath = outDirPath + "invField.vtk"
+
+    binPath = ndregDirPath + "metamorphosis "
+    steps = 5 ###
+    command = binPath + " --in {0} --ref {1} --out {2} --alpha {3} --beta {4} --field {5} --invfield {6} --iterations {7} --scale {8} --steps {9} --verbose ".format(inPathSave, refPathSave, outPath, alpha, beta, fieldPath, invFieldPath, iterations, scale, steps)
+    
+    if isinstance(sigma, list):
+        command += " --sigma"
+        for i in range(len(sigma)):
+            command += " " + str(sigma[i])
+    
+    if isinstance(useMI, list):
+        command += " --cost"
+        for i in range(len(useMI)):
+            command += " " + str(int(useMI[i]))
+    
+    if(not useBias): command += " --mu 0"
+    '''
+    if(useMI):
+        #command += " --cost 1 --sigma 1e-5 --epsilon 1e-3" 
+        #command += " --cost 1 --sigma 1e-4 --epsilon 1e-3"
+        command += " --epsilon 1e-3"
+    else:
+        #command += " --cost 0 --sigma 1e-2 --epsilon 1e-6"
+        command += " --epsilon 1e-6"
+    '''
+    if(epsilon):
+        command += " --epsilon " +str(epsilon)
+    else:
+        command += " --epsilon 1e-6"
+        
+    if(inMask):
+        inMaskPath = outDirPath + "inMask.img"
+        imgWrite(inMask, inMaskPath)
+        command += " --inmask " + inMaskPath
+
+    if(refMask):
+        refMaskPath = outDirPath + "refMask.img"
+        imgWrite(refMask, refMaskPath)
+        command += " --refmask " + refMaskPath
+    
+    if debug: print(command)
+    #os.system(command)
+    (returnValue, logText) = run(command, verbose=verbose)
+    
+    logPath = outDirPath+"log.txt"
+    txtWrite(logText, logPath)
+
+    field = imgRead(fieldPath)
+    invField = imgRead(invFieldPath)
+    
+    if useTempDir: shutil.rmtree(outDirPath)
+    return (field, invField)
+
+def imgMetamorphosisCompositeMC(inImg, refImg, alphaList=0.02, betaList=0.05, scaleList=1.0, sigmaList = 1e-4, iterations=1000, epsilon=1e-6, useNearest=False, useBias=False, useMI=False, inMask=None, refMask=None, verbose=True, debug=False, outDirPath=""):
+    """
+    Performs Metamorphic LDDMM between input and reference images
+    """
+    useTempDir = False
+    if outDirPath == "":
+        useTempDir = True
+        outDirPath = tempfile.mkdtemp() + "/"
+    else:
+        outDirPath = dirMake(outDirPath)
+
+    if isNumber(alphaList): alphaList = [float(alphaList)]
+    if isNumber(betaList): betaList = [float(betaList)]
+    if isNumber(scaleList): scaleList = [float(scaleList)]
+    if isNumber(sigmaList): sigmaList = [float(sigmaList)]
+    if isinstance(useMI,int): useMI = [bool(useMI)]
+    
+    numSteps = max(len(alphaList), len(betaList), len(scaleList))
+
+    if len(alphaList) != numSteps:
+        if len(alphaList) != 1:
+            raise Exception("Legth of alphaList must be 1 or same length as betaList or scaleList")
+        else:
+            alphaList *= numSteps
+
+    if len(betaList) != numSteps:
+        if len(betaList) != 1:
+            raise Exception("Legth of betaList must be 1 or same length as alphaList or scaleList")
+        else:
+            betaList *= numSteps
+        
+    if len(scaleList) != numSteps:
+        if len(scaleList) != 1:
+            raise Exception("Legth of scaleList must be 1 or same length as alphaList or betaList")
+        else:
+            scaleList *= numSteps
+
+    if isinstance(inImg,list):
+        origInImg = list(inImg)
+    else:
+        origInImg = inImg
+    
+    if isinstance(inImg, list):
+        if len(sigmaList) != len(inImg):
+            if len(sigmaList) != 1:
+                raise Exception("Legth of sigmaList must be 1 or same length as the image list")
+            else:
+                sigmaList *= len(inImg)
+        
+        if len(useMI) != len(inImg):
+            if len(useMI) != 1:
+                raise Exception("Legth of useMI must be 1 or same length as the image list")
+            else:
+                useMI *= len(inImg)
+                
+    
+    origInMask = inMask
+    for step in range(numSteps):
+        alpha = alphaList[step]
+        beta = betaList[step]
+        scale = scaleList[step]
+        stepDirPath = outDirPath + "step" + str(step) + "/"
+        if(verbose): print("\nStep {0}: alpha={1}, beta={2}, scale={3}".format(step,alpha, beta, scale))
+
+	if isinstance(inImg,list):
+            (field, invField) = imgMetamorphosisMC(inImg, refImg, 
+                                                 alpha, 
+                                                 beta, 
+                                                 scale,
+                                                 sigmaList,
+                                                 iterations, 
+                                                 epsilon,
+                                                 useNearest, 
+                                                 useBias, 
+                                                 useMI, 
+                                                 verbose,
+                                                 debug,
+                                                 inMask=inMask,
+                                                 refMask=refMask,
+                                                 outDirPath=stepDirPath)
+        else:
+            (field, invField) = imgMetamorphosis(inImg, refImg, 
+                                                 alpha, 
+                                                 beta, 
+                                                 scale, 
+                                                 iterations, 
+                                                 useNearest, 
+                                                 useBias, 
+                                                 useMI, 
+                                                 verbose,
+                                                 debug,
+                                                 inMask=inMask,
+                                                 refMask=refMask,
+                                                 outDirPath=stepDirPath)
+	
+        
+        if step == 0:
+            compositeField = field
+            compositeInvField = invField
+        else:
+            compositeField = fieldApplyField(field, compositeField)
+            compositeInvField = fieldApplyField(compositeInvField, invField, size=field.GetSize(), spacing=field.GetSpacing()) #force invField to be same size as field
+
+            if outDirPath != "":
+                fieldPath = stepDirPath+"field.vtk"
+                invFieldPath = stepDirPath+"invField.vtk"
+                imgWrite(compositeInvField, invFieldPath)
+                imgWrite(compositeField, fieldPath)
+        
+        if isinstance(inImg,list):
+            for i in range(len(inImg)):
+                inImg[i] = imgApplyField(origInImg[i], compositeField, size=refImg[i].GetSize())
+        else:
+            inImg = imgApplyField(origInImg, compositeField, size=refImg.GetSize())
+        if(inMask): inMask=imgApplyField(origInMask, compositeField, size=refImg.GetSize(), useNearest=True)
+
+    # Write final results
+    if outDirPath != "":
+        imgWrite(compositeField, outDirPath+"field.vtk")
+        imgWrite(compositeInvField, outDirPath+"invField.vtk")
+        if isinstance(inImg,list):
+            for i in range(len(inImg)):
+                imgWrite(inImg[i], outDirPath+"out" +str(i)+ ".img")
+        else:
+            imgWrite(inImg, outDirPath+"out.img")
+        
+        #imgWrite(imgChecker(inImg[0],refImg[0]), outDirPath+"checker.img")
+    
+    if useTempDir: shutil.rmtree(outDirPath)
+    return (compositeField, compositeInvField)
+
+
+
+
 
 def imgRegistration(inImg, refImg, scale=1.0, affineScale=1.0, lddmmScaleList=[1.0], lddmmAlphaList=[0.02], iterations=1000, useMI=False, useNearest=True, inAffine=identityAffine, padding=0, inMask=None, refMask=None, verbose=False, outDirPath=""):
     if outDirPath != "": outDirPath = dirMake(outDirPath)

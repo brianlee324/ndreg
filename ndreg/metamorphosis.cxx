@@ -30,6 +30,8 @@ template<typename TImage> int Metamorphosis(typename TImage::Pointer fixedImage,
 
 int main(int argc, char* argv[])
 {
+    
+  std::cout<<"bin_nmc 9-mar-2017 1553"<<std::endl;
   /** Check command line arguments */
   ParserType::Pointer parser = ParserType::New();
   parser->SetCommandLineArguments(argc,argv);
@@ -184,6 +186,7 @@ int Metamorphosis(typename TImage::Pointer fixedImage, typename ParserType::Poin
       referenceImage->SetDirection(direction);
       referenceImages.push_back(referenceImage);
   }
+  std::cout<<"length of referenceImages: "<<referenceImages.size()<<std::endl;
   metamorphosis->SetFixedImages(referenceImages);
 
   // Read input (moving) images
@@ -197,25 +200,37 @@ int Metamorphosis(typename TImage::Pointer fixedImage, typename ParserType::Poin
 
   std::vector<typename ImageType::Pointer> inputImages;
   typename ReaderType::Pointer inputReader = ReaderType::New();
-  for(std::vector<std::string>::const_iterator i = referencePaths.begin(); i != referencePaths.end(); ++i)
+  for(std::vector<std::string>::const_iterator i = inputPaths.begin(); i != inputPaths.end(); ++i)
   {
       std::cout<<*i<<std::endl;
       inputReader->SetFileName(*i);
+      std::cout<<"set file name"<<std::endl;
       try
       {
           inputReader->Update();
       }
       catch(itk::ExceptionObject& exceptionObject)
       {
-          cerr<<"Error: Could not read reference image: "<<*i<<endl;
+          cerr<<"Error: Could not read input image: "<<*i<<endl;
           cerr<<exceptionObject<<endl;
           return EXIT_FAILURE;
       }
+      std::cout<<"begin check for first interation"<<std::endl;
+      if(i==inputPaths.begin())
+      {
+          std::cout<<"first input iteration"<<std::endl;
+          typename ImageType::Pointer firstInputImage = inputReader->GetOutput();
+          firstInputImage->SetDirection(direction);
+          metamorphosis->SetMovingImage(firstInputImage);
+      }
+      std::cout<<"end of first iteration if statement"<<std::endl;
       typename ImageType::Pointer inputImage = inputReader->GetOutput();
       //ImageType::DirectionType direction; direction.SetIdentity();
       inputImage->SetDirection(direction);
       inputImages.push_back(inputImage);
+      std::cout<<"end of pushing back input images"<<std::endl;
   }
+  std::cout<<"length of inputImages: "<<inputImages.size()<<std::endl;
   metamorphosis->SetMovingImages(inputImages);
   
   
@@ -295,7 +310,7 @@ int Metamorphosis(typename TImage::Pointer fixedImage, typename ParserType::Poin
     parser->GetCommandLineArgument("--alpha",alpha);
     metamorphosis->SetRegistrationSmoothness(alpha);
   }
-
+  std::cout<<"test alpha"<<std::endl;
 
   if(parser->ArgumentExists("--beta"))
   {
@@ -453,6 +468,7 @@ int Metamorphosis(typename TImage::Pointer fixedImage, typename ParserType::Poin
     metamorphosis->SetMetrics(metrics);
     
   }
+  std::cout<<"test cost"<<std::endl;
 
   //TODO: make this multichannel
   if(parser->ArgumentExists("--sigma"))
@@ -461,6 +477,7 @@ int Metamorphosis(typename TImage::Pointer fixedImage, typename ParserType::Poin
     parser->GetCommandLineArgument("--sigma",sigma);
     metamorphosis->SetSigma(sigma);
   }
+  std::cout<<"test sigma"<<std::endl;
 
   // Run metamorphosis 
   itk::TimeProbe clock;

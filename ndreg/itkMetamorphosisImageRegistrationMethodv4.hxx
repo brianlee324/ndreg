@@ -170,6 +170,7 @@ Initialize()
     }
   }
   velocitySize[ImageDimension] = m_NumberOfTimeSteps;
+  std::cout<<"end initialize velocity"<<std::endl;
 
   typename TimeVaryingFieldType::RegionType velocityRegion(velocityIndex, velocitySize);
   TimeVaryingFieldPointer velocity = TimeVaryingFieldType::New();
@@ -225,6 +226,7 @@ Initialize()
       virtualDirection(i,j) = velocityDirection(i,j);
     }
   }
+  std::cout<<"end initialize virtuals"<<std::endl;
 
   typename VirtualImageType::RegionType virtualRegion(virtualIndex, virtualSize);
   m_VirtualImage->SetRegions(virtualRegion);
@@ -268,10 +270,15 @@ Initialize()
     movingImagesCaster->Update();
     m_ForwardImages.push_back(movingImagesCaster->GetOutput());
   }
-    
+  std::cout<<"end initialize forward images"<<std::endl;
+  std::cout<<"length of forward images vector: "<<m_ForwardImages.size()<<std::endl;
+  std::cout<<"length of moving images vector: "<<m_MovingImages.size()<<std::endl;
+  
   // Initialize forward mask M(1)
   ImageMetricPointer metric = dynamic_cast<ImageMetricType *>(this->m_Metrics[0].GetPointer()); 
+  std::cout<<"line 1"<<std::endl;
   typedef SpatialObjectToImageFilter<MaskType, MaskImageType> MaskToImageType;
+  std::cout<<"line 2"<<std::endl;
   if(metric->GetMovingImageMask())
   {
     typename MaskToImageType::Pointer maskToImage = MaskToImageType::New();
@@ -279,6 +286,7 @@ Initialize()
     maskToImage->SetInsideValue(1);
     maskToImage->SetOutsideValue(0);
     maskToImage->SetSpacing(m_ForwardImages[0]->GetSpacing());
+    std::cout<<"line 3"<<std::endl;
     maskToImage->SetOrigin(m_ForwardImages[0]->GetOrigin());
     maskToImage->SetDirection(m_ForwardImages[0]->GetDirection());
     maskToImage->SetSize(m_ForwardImages[0]->GetLargestPossibleRegion().GetSize());
@@ -293,6 +301,7 @@ Initialize()
     
     m_ForwardMaskImage = duplicator->GetModifiableOutput(); // M(1) = M_0
   }
+  std::cout<<"end initialize forward mask"<<std::endl;
 
   // Initialize fixed mask M_1
   MaskPointer fixedMask;
@@ -312,6 +321,7 @@ Initialize()
     fixedMask = MaskType::New();
     fixedMask->SetImage(maskToImage->GetOutput()); // M_1
   }
+  std::cout<<"end initialize fixed mask"<<std::endl;
 
   // Initialize velocity kernels, K_V, L_V
   InitializeKernels(m_VelocityKernel,m_InverseVelocityKernel,m_RegistrationSmoothness,m_Gamma);
@@ -325,6 +335,7 @@ Initialize()
   m_NumberOfTimeSteps = velocity->GetLargestPossibleRegion().GetSize()[ImageDimension]; // J
   m_TimeStep = 1.0/(m_NumberOfTimeSteps - 1); // \Delta t
   m_RecalculateEnergy = true; // v and r have been initialized
+  std::cout<<"end initialize constants"<<std::endl;
   
   //typedef CastImageFilter<FixedImageType, VirtualImageType>  FixedCasterType;
   //typename FixedCasterType::Pointer fixedCaster = FixedCasterType::New();
@@ -333,7 +344,9 @@ Initialize()
   
   //m_MinImageEnergy = GetImageEnergy(fixedCaster->GetOutput(), fixedMask, true);
   m_MinImageEnergy = GetImageEnergy(m_FixedImages, fixedMask);
+  std::cout<<"end initialize min image energy"<<std::endl;
   m_MaxImageEnergy = GetImageEnergy();
+  std::cout<<"end initialize max image energy"<<std::endl;
   std::cout<<"Min energy:"<< m_MinImageEnergy << std::endl;
   std::cout<<"Max energy:"<< m_MaxImageEnergy << std::endl;
   
@@ -435,6 +448,7 @@ double
 MetamorphosisImageRegistrationMethodv4<TFixedImage, TMovingImage>::
 GetImageEnergy(std::vector<VirtualImagePointer> movingImages, MaskPointer movingMask)
 {    
+  std::cout<<"start get image energy ( with args )"<<std::endl;
   // I should change this so that I'm passing in a vector of images rather than garbage movingImage
   // here I need to load each pair of moving and fixed images and their corresponding metric
   // Initialize casters for fixed and moving images
@@ -447,21 +461,28 @@ GetImageEnergy(std::vector<VirtualImagePointer> movingImages, MaskPointer moving
   // start for loop to iterate through length of vector
   for(int i = 0; i < m_FixedImages.size(); ++i)
   {
+      //std::cout<<"start for loop"<<std::endl;
       // load fixed image
       typename FixedCasterType::Pointer fixedCaster = FixedCasterType::New();
       fixedCaster->SetInput(m_FixedImages[i]);                            // I(1)
+      //std::cout<<"set input of m_FixedImages"<<std::endl;
       fixedCaster->Update();
       // load moving image
       typename MovingCasterType::Pointer movingCaster = MovingCasterType::New();
+      //BUG: movingImages has size zero. it's not set for some reason
+      //std::cout<<movingImages.size()<<std::endl;
       movingCaster->SetInput(movingImages[i]);                            // I(1)
+      //std::cout<<"set moving image input"<<std::endl;
       movingCaster->Update();
       
       // load sigma
       double mysigma = m_Sigma[i];
+      //std::cout<<"set mysigma"<<std::endl;
       
       // load metric
       // need to dynamic cast the metric now since we've stored a list of the base class
       ImageMetricPointer metric = dynamic_cast<ImageMetricType *>(this->m_Metrics[i].GetPointer());
+      //std::cout<<"cast pointer"<<std::endl;
       
       // set metric info
       metric->SetFixedImage(fixedCaster->GetOutput());        // I_1
@@ -471,6 +492,7 @@ GetImageEnergy(std::vector<VirtualImagePointer> movingImages, MaskPointer moving
       metric->SetMovingImageMask(movingMask);
       metric->SetVirtualDomainFromImage(m_VirtualImage);
       metric->Initialize();
+      //std::cout<<"set metric stuff"<<std::endl;
       
       // sum image energy for each iteration of loop
       imageEnergy += 0.5*vcl_pow(mysigma,-2) * metric->GetValue() * metric->GetNumberOfValidPoints() * m_VoxelVolume;
@@ -483,12 +505,15 @@ double
 MetamorphosisImageRegistrationMethodv4<TFixedImage, TMovingImage>::
 GetImageEnergy()
 { 
+  std::cout<<"start get image energy ()"<<std::endl;
   MaskPointer forwardMask;
   if(m_ForwardMaskImage)
   {
+    //std::cout<<"start getImageEnergy adding forward Mask"<<std::endl;
     forwardMask = MaskType::New();
     forwardMask->SetImage(m_ForwardMaskImage);
   }
+  //std::cout<<"get image energy() passes to parent function"<<std::endl;
   return GetImageEnergy(m_ForwardImages, forwardMask); // I(1)
 }
 
@@ -631,6 +656,8 @@ GetMetricDerivative(FieldPointer field, bool useImageGradients)
   typename MCFieldAdderType::Pointer mcadder0 = MCFieldAdderType::New();
   typename FieldMultiplierType::Pointer multiplier0 = FieldMultiplierType::New();
   
+  
+  
   // start for loop to sum the metric metric derivatives
   for(int i = 0; i < m_FixedImages.size(); ++i)
   {
@@ -686,6 +713,16 @@ GetMetricDerivative(FieldPointer field, bool useImageGradients)
       
       // add this channel into the sum
       mcadder0->PushBackInput(multiplier1->GetOutput());   // p \nabla I_2
+      
+      // make a blank image of zeros to initialize the NaryAddImageFilter
+      if(i==0)
+      {
+        typename FieldMultiplierType::Pointer multiplier2 = FieldMultiplierType::New();
+        multiplier2->SetInput(importer->GetOutput());  // -dM(I(1) o \phi{t1}, I_1 o \phi{t1})
+        multiplier2->SetConstant(0); // 0
+        multiplier2->Update();
+        mcadder0->PushBackInput(multiplier2->GetOutput());
+      }
   }
   
   // actually compute the sum now
@@ -722,6 +759,7 @@ void
 MetamorphosisImageRegistrationMethodv4<TFixedImage, TMovingImage>::
 UpdateControls()
 {
+  std::cout<<"start update controls"<<std::endl;
   typedef JoinSeriesImageFilter<FieldType,TimeVaryingFieldType> FieldJoinerType;
   typename FieldJoinerType::Pointer velocityJoiner = FieldJoinerType::New();
 
@@ -761,6 +799,7 @@ UpdateControls()
 
   } // end for j
   velocityJoiner->Update();
+  std::cout<<"end velocity joiner"<<std::endl;
 
   // Compute velocity energy gradient, \nabla_V E = v + K_V [p \nabla I]
   typedef AddImageFilter<TimeVaryingFieldType> TimeVaryingFieldAdderType;
@@ -791,6 +830,8 @@ UpdateControls()
     rateEnergyGradient = adder1->GetOutput();      // \nabla_R E = r - \mu^2 K_R[p]
   }
 
+  std::cout<<"end compute gradients"<<std::endl;
+  
   double                  energyOld = GetEnergy();
   TimeVaryingFieldPointer velocityOld = this->m_OutputTransform->GetVelocityField();
   TimeVaryingImagePointer rateOld = m_Rate;
@@ -809,6 +850,8 @@ UpdateControls()
     adder2->Update();
 
     this->m_OutputTransform->SetVelocityField(adder2->GetOutput());  // v = v - \epsilon \nabla_V E
+    
+    std::cout<<"end update velocity"<<std::endl;
 
     // Compute forward mapping \phi{10} by integrating velocity field v(t)
     this->m_OutputTransform->SetNumberOfIntegrationSteps((m_NumberOfTimeSteps -1) + 2);
@@ -851,6 +894,8 @@ UpdateControls()
         m_ForwardImages[i] = resampler->GetOutput();       // I_0 o \phi_{10}
 
     }
+    
+    std::cout<<"end compute forward images"<<std::endl;
     
     // Compute forward mask M(1) = M_0 o \phi{1_0} 
     if(m_ForwardMaskImage)
@@ -910,6 +955,8 @@ UpdateControls()
     }
 
     m_RecalculateEnergy = true;
+    
+    std::cout<<"start recalculate energy"<<std::endl;
    
     typename VirtualImageType::IndexType centerIndex;
     m_ForwardImages[0]->TransformPhysicalPointToIndex(transform->TransformPoint(m_CenterPoint), centerIndex);
@@ -966,7 +1013,9 @@ void
 MetamorphosisImageRegistrationMethodv4<TFixedImage, TMovingImage>::
 GenerateData()
 {
+  std::cout<<"start initialize()"<<std::endl;
   Initialize();
+  std::cout<<"end initialize()"<<std::endl;
   StartOptimization();
 
   // Integrate rate to get final bias, B(1)  
